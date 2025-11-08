@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-inspect-ingress
+  namespace: ai-inspect
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: inspect.example.com
+    http:
+      paths:
+      - path: /api/device
+        pathType: Prefix
+        backend:
+          service:
+            name: device-service
+            port:
+              number: 8000
+      - path: /api/collect
+        pathType: Prefix
+        backend:
+          service:
+            name: collect-service
+            port:
+              number: 8001
+      - path: /api/ai
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-service
+            port:
+              number: 8002
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 80

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: device-service
+  namespace: ai-inspect
+spec:
+  replicas: 2  # 水平扩展2副本，支持高可用
+  selector:
+    matchLabels:
+      app: device-service
+  template:
+    metadata:
+      labels:
+        app: device-service
+    spec:
+      containers:
+      - name: device-service
+        image: huawei-inspect/device-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SPRING_DATASOURCE_URL
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: url
+        - name: ENCRYPT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: encrypt-secret
+              key: key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: device-service
+  namespace: ai-inspect
+spec:
+  selector:
+    app: device-service
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: ClusterIP

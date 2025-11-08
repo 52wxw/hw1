@@ -1,0 +1,116 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "iteration": 1651240000000,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "enableLogMessage": true,
+        "showCommonLabels": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": ""
+          },
+          "expr": "{job=\"container-logs\"}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "容器日志明细 (Loki)",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "elasticsearch",
+        "uid": ""
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "displayMode": "table",
+            "inspect": false
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 2,
+      "options": {
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "elasticsearch",
+            "uid": ""
+          },
+          "format": "table",
+          "query": "@timestamp:[now-15m TO now]",
+          "refId": "A"
+        }
+      ],
+      "title": "最近 15 分钟 Logstash 指标",
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["logging"],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Logging Overview",
+  "uid": "logging-overview",
+  "version": 1
+}
+

@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/ai_inspect?useSSL=false&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Root@123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update  # 自动创建表结构（开发环境）
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect  # 关键：指定MySQL8方言
+        format_sql: true  # 可选：格式化SQL日志，方便调试
+    open-in-view: false  # 关闭OpenInView模式，避免懒加载问题
+
+server:
+  port: 8000
+  servlet:
+    context-path: /
+
+# 加密配置：16字节密钥（AES-128，兼容所有环境）
+encrypt:
+  key: ValidAESKey123456  # 严格16字节，请勿修改长度
+
+services:
+  collect: ${COLLECT_SERVICE_URL:http://collect-service:8001}
+  ai: ${AI_SERVICE_URL:http://ai-service:8002}
+
+topology:
+  cache:
+    enabled: ${TOPOLOGY_CACHE_ENABLED:true}
+    ttl: ${TOPOLOGY_CACHE_TTL_SECONDS:300}
+    refresh-interval: ${TOPOLOGY_CACHE_REFRESH_MS:300000}
