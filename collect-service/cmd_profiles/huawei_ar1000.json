@@ -1,0 +1,9 @@
+{
+    "cmds": [
+        "display version",
+        "display cpu-usage",
+        "display memory-usage",
+        "display interface brief",
+        "display vlan brief"
+    ]
+}

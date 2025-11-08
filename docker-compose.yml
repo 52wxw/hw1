@@ -1,0 +1,191 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PWD}
+      MYSQL_DATABASE: ai_inspect
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.0
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  device-service:
+    build: ./device-service
+    ports:
+      - "8000:8000"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/ai_inspect
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PWD}
+      - ENCRYPT_KEY=${FERNET_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  collect-service:
+    build: ./collect-service
+    ports:
+      - "8001:8001"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    depends_on:
+      - redis
+      - rabbitmq
+      - device-service
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ./ai-service/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - COLLECT_SERVICE_URL=http://collect-service:8001
+    depends_on:
+      - redis
+      - collect-service
+
+  scheduler-service:
+    build: ./scheduler-service
+    ports:
+      - "8003:8003"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PWD}
+      - MYSQL_DATABASE=ai_inspect
+      - DEVICE_SERVICE_URL=http://device-service:8000
+      - COLLECT_SERVICE_URL=http://collect-service:8001
+      - AI_SERVICE_URL=http://ai-service:8002
+    depends_on:
+      - mysql
+      - device-service
+      - collect-service
+      - ai-service
+
+  alert-service:
+    build: ./alert-service
+    ports:
+      - "8004:8004"
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=${MYSQL_ROOT_PWD}
+      - MYSQL_DATABASE=ai_inspect
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - FROM_EMAIL=${FROM_EMAIL}
+      - WECHAT_WEBHOOK=${WECHAT_WEBHOOK}
+      - DINGTALK_WEBHOOK=${DINGTALK_WEBHOOK}
+    depends_on:
+      - mysql
+
+  opengemini:
+    image: opengeminidb/opengemini-server:latest
+    container_name: opengemini
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - opengemini_data:/opt/opengemini/data
+
+  hertzbeat:
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/quay.io/tancloud/hertzbeat:v1.5.0
+    container_name: hertzbeat
+    restart: unless-stopped
+    ports:
+      - "1157:1157"
+    environment:
+      - TZ=Asia/Shanghai
+      - HERTZBEAT_UID=0
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/hertzbeat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=${MYSQL_ROOT_PWD}
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_DATABASE=2
+      - HERTZBEAT_INFLUX_URL=http://opengemini:8086
+      - HERTZBEAT_INFLUX_USERNAME=${HERTZBEAT_INFLUX_USERNAME:-root}
+      - HERTZBEAT_INFLUX_PASSWORD=${HERTZBEAT_INFLUX_PASSWORD:-root}
+      - HERTZBEAT_INFLUX_BUCKET=${HERTZBEAT_INFLUX_BUCKET:-hertzbeat}
+      - HERTZBEAT_ALERT_WEBHOOK=${HERTZBEAT_ALERT_WEBHOOK:-http://alert-service:8004/api/alert/hertzbeat}
+    volumes:
+      - ./infra/hertzbeat/application.yml:/opt/hertzbeat/config/application.yml
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      opengemini:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:10.2.4
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s:%(http_port)s/
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - opengemini
+      - hertzbeat
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - ./frontend/nginx/conf.d:/etc/nginx/conf.d
+    ports:
+      - "80:80"
+    depends_on:
+      - device-service
+      - ai-service
+      - scheduler-service
+      - alert-service
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
+  opengemini_data:
+  grafana_data:
