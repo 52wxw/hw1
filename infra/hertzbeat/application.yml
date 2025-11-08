@@ -1,0 +1,34 @@
+# HertzBeat runtime configuration
+# 该配置覆盖默认的应用配置，将指标仓库指向 openGemini (InfluxDB 兼容接口)
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://mysql:3306/hertzbeat?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: ${SPRING_REDIS_HOST:redis}
+    port: ${SPRING_REDIS_PORT:6379}
+    database: ${SPRING_REDIS_DATABASE:2}
+
+warehouse:
+  store: influxdb
+  influxdb:
+    url: ${HERTZBEAT_INFLUX_URL:http://opengemini:8086}
+    username: ${HERTZBEAT_INFLUX_USERNAME:root}
+    password: ${HERTZBEAT_INFLUX_PASSWORD:root}
+    bucket: ${HERTZBEAT_INFLUX_BUCKET:hertzbeat}
+    org: ${HERTZBEAT_INFLUX_ORG:default}
+    version: v1
+
+alerter:
+  # 统一由 alert-service 处理告警，这里只保留 webhook 输出
+  webhooks:
+    - url: ${HERTZBEAT_ALERT_WEBHOOK:http://alert-service:8004/api/alert/hertzbeat}
+      name: default-webhook
+
+logging:
+  level:
+    root: INFO
+
